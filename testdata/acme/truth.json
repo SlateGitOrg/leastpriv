@@ -100,6 +100,12 @@
           "observable": true
         },
         {
+          "action": "secretsmanager:DescribeSecret",
+          "resource": "arn:aws:secretsmanager:us-east-1:111122223333:secret:acme/app/db-Xk3P9q",
+          "frequency": "quarterly",
+          "observable": true
+        },
+        {
           "action": "logs:CreateLogStream",
           "resource": "arn:aws:logs:us-east-1:111122223333:log-group:/acme/app-backend",
           "frequency": "weekly",
@@ -187,6 +193,12 @@
           "action": "lambda:CreateFunction",
           "resource": "arn:aws:lambda:*:111122223333:function:deploy-*",
           "frequency": "monthly",
+          "observable": true
+        },
+        {
+          "action": "lambda:DeleteFunction",
+          "resource": "arn:aws:lambda:*:111122223333:function:deploy-*",
+          "frequency": "quarterly",
           "observable": true
         },
         {
@@ -405,7 +417,7 @@
       ]
     }
   ],
-  "events": 9529,
+  "events": 9561,
   "noise": {
     "aws-service-principal": 30,
     "denied-explicit-deny": 3,

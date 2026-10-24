@@ -41,7 +41,8 @@ func DefaultConfig() Config {
 type Need struct {
 	Action   string `json:"action"`
 	Resource string `json:"resource"`
-	// Frequency is "frequent", "daily", "weekly", "monthly" or "never-logged".
+	// Frequency is "frequent", "daily", "weekly", "monthly", "quarterly"
+	// (only in the held-out window) or "never-logged".
 	Frequency string `json:"frequency"`
 	// Observable is false for actions CloudTrail never records.
 	Observable bool `json:"observable"`

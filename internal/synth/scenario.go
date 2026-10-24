@@ -56,7 +56,9 @@ func scenario() ([]task, []task, []PrincipalTruth) {
 	}
 	fn := func(r *rand.Rand) string { return []string{"deploy-api", "deploy-worker", "deploy-cron"}[r.IntN(3)] }
 
-	n := func(action, res, freq string) Need { return Need{Action: action, Resource: res, Frequency: freq, Observable: true} }
+	n := func(action, res, freq string) Need {
+		return Need{Action: action, Resource: res, Frequency: freq, Observable: true}
+	}
 	tasks := []task{
 		// app-backend: an order-processing service.
 		{actor: app, need: n("s3:GetObject", "arn:aws:s3:::acme-app-data/uploads/*", "frequent"), rate: 14, hour: -1,
@@ -64,13 +66,21 @@ func scenario() ([]task, []task, []PrincipalTruth) {
 				return s3Object("GetObject", appBucket, uploadKey(r, d.AddDate(0, 0, -r.IntN(3))), true)
 			}},
 		{actor: app, need: n("s3:PutObject", "arn:aws:s3:::acme-app-data/uploads/*", "frequent"), rate: 8, hour: -1,
-			build: func(r *rand.Rand, _ int, d time.Time) call { return s3Object("PutObject", appBucket, uploadKey(r, d), false) }},
+			build: func(r *rand.Rand, _ int, d time.Time) call {
+				return s3Object("PutObject", appBucket, uploadKey(r, d), false)
+			}},
 		{actor: app, need: n("s3:PutObject", "arn:aws:s3:::acme-app-data/exports/*", "daily"), rate: 2, hour: 2,
-			build: func(r *rand.Rand, _ int, d time.Time) call { return s3Object("PutObject", appBucket, exportKey(r, d), false) }},
+			build: func(r *rand.Rand, _ int, d time.Time) call {
+				return s3Object("PutObject", appBucket, exportKey(r, d), false)
+			}},
 		{actor: app, need: n("s3:ListBucket", "arn:aws:s3:::acme-app-data", "daily"), rate: 3, hour: -1,
-			build: func(_ *rand.Rand, _ int, d time.Time) call { return s3List(appBucket, "uploads/"+d.Format("2006/01/02")+"/") }},
+			build: func(_ *rand.Rand, _ int, d time.Time) call {
+				return s3List(appBucket, "uploads/"+d.Format("2006/01/02")+"/")
+			}},
 		{actor: app, need: n("s3:DeleteObject", "arn:aws:s3:::acme-app-data/exports/*", "monthly"), everyDays: 30, phase: 27, hour: 3,
-			build: func(r *rand.Rand, _ int, d time.Time) call { return s3Object("DeleteObject", appBucket, exportKey(r, d), false) }},
+			build: func(r *rand.Rand, _ int, d time.Time) call {
+				return s3Object("DeleteObject", appBucket, exportKey(r, d), false)
+			}},
 		{actor: app, need: n("dynamodb:GetItem", "arn:aws:dynamodb:us-east-1:111122223333:table/orders", "frequent"), rate: 10, hour: -1,
 			build: func(*rand.Rand, int, time.Time) call { return ddb("GetItem", "us-east-1", "orders", "", true) }},
 		{actor: app, need: n("dynamodb:PutItem", "arn:aws:dynamodb:us-east-1:111122223333:table/orders", "frequent"), rate: 6, hour: -1,
@@ -80,17 +90,29 @@ func scenario() ([]task, []task, []PrincipalTruth) {
 		{actor: app, need: n("dynamodb:Query", "arn:aws:dynamodb:us-east-1:111122223333:table/orders/index/by-customer", "frequent"), rate: 4, hour: -1,
 			build: func(*rand.Rand, int, time.Time) call { return ddb("Query", "us-east-1", "orders", "by-customer", true) }},
 		{actor: app, need: n("sqs:SendMessage", "arn:aws:sqs:us-east-1:111122223333:order-events", "frequent"), rate: 6, hour: -1,
-			build: func(*rand.Rand, int, time.Time) call { return sqsCall("SendMessage", "us-east-1", "order-events", false) }},
+			build: func(*rand.Rand, int, time.Time) call {
+				return sqsCall("SendMessage", "us-east-1", "order-events", false)
+			}},
 		{actor: app, need: n("sqs:ReceiveMessage", "arn:aws:sqs:us-east-1:111122223333:order-jobs", "frequent"), rate: 6, hour: -1,
-			build: func(*rand.Rand, int, time.Time) call { return sqsCall("ReceiveMessage", "us-east-1", "order-jobs", true) }},
+			build: func(*rand.Rand, int, time.Time) call {
+				return sqsCall("ReceiveMessage", "us-east-1", "order-jobs", true)
+			}},
 		{actor: app, need: n("sqs:DeleteMessage", "arn:aws:sqs:us-east-1:111122223333:order-jobs", "frequent"), rate: 5, hour: -1,
-			build: func(*rand.Rand, int, time.Time) call { return sqsCall("DeleteMessageBatch", "us-east-1", "order-jobs", false) }},
+			build: func(*rand.Rand, int, time.Time) call {
+				return sqsCall("DeleteMessageBatch", "us-east-1", "order-jobs", false)
+			}},
 		{actor: app, need: n("kms:Decrypt", "arn:aws:kms:us-east-1:111122223333:key/"+dataKeyID, "frequent"), rate: 4, hour: -1,
 			build: func(*rand.Rand, int, time.Time) call { return kmsCall("Decrypt", dataKeyID, "") }},
 		{actor: app, need: n("kms:GenerateDataKey", "arn:aws:kms:us-east-1:111122223333:key/"+dataKeyID, "daily"), rate: 2, hour: -1,
 			build: func(*rand.Rand, int, time.Time) call { return kmsCall("GenerateDataKey", dataKeyID, "alias/app-data") }},
 		{actor: app, need: n("secretsmanager:GetSecretValue", dbSecret, "daily"), rate: 1, hour: 6,
 			build: func(*rand.Rand, int, time.Time) call { return secretCall(dbSecret) }},
+		{actor: app, need: n("secretsmanager:DescribeSecret", dbSecret, "quarterly"), everyDays: 90, phase: 70, hour: 6,
+			build: func(*rand.Rand, int, time.Time) call {
+				c := secretCall(dbSecret)
+				c.name = "DescribeSecret"
+				return c
+			}},
 		{actor: app, need: n("logs:CreateLogStream", "arn:aws:logs:us-east-1:111122223333:log-group:/acme/app-backend", "weekly"), everyDays: 7, phase: 3, hour: 0,
 			build: func(_ *rand.Rand, day int, _ time.Time) call {
 				return logsCall("CreateLogStream", "/acme/app-backend", fmt.Sprintf("app-backend/main/%03d", day))
@@ -103,7 +125,9 @@ func scenario() ([]task, []task, []PrincipalTruth) {
 				return lambdaCall("UpdateFunctionCode20150331v2", "us-east-1", fn(r), false)
 			}},
 		{actor: ci, need: n("lambda:PublishVersion", "arn:aws:lambda:*:111122223333:function:deploy-*", "daily"), rate: 2, weekdays: true, hour: 15,
-			build: func(r *rand.Rand, _ int, _ time.Time) call { return lambdaCall("PublishVersion20150331", "us-east-1", fn(r), false) }},
+			build: func(r *rand.Rand, _ int, _ time.Time) call {
+				return lambdaCall("PublishVersion20150331", "us-east-1", fn(r), false)
+			}},
 		{actor: ci, need: n("lambda:UpdateFunctionConfiguration", "arn:aws:lambda:*:111122223333:function:deploy-*", "weekly"), everyDays: 7, phase: 1, hour: 15,
 			build: func(r *rand.Rand, _ int, _ time.Time) call {
 				return lambdaCall("UpdateFunctionConfiguration20150331v2", "us-east-1", fn(r), false)
@@ -113,7 +137,13 @@ func scenario() ([]task, []task, []PrincipalTruth) {
 				return lambdaCall("GetFunction20150331v2", region(r), fn(r), true)
 			}},
 		{actor: ci, need: n("lambda:CreateFunction", "arn:aws:lambda:*:111122223333:function:deploy-*", "monthly"), everyDays: 30, phase: 12, hour: 15,
-			build: func(*rand.Rand, int, time.Time) call { return lambdaCall("CreateFunction20150331", "us-east-1", "deploy-reports", false) }},
+			build: func(*rand.Rand, int, time.Time) call {
+				return lambdaCall("CreateFunction20150331", "us-east-1", "deploy-reports", false)
+			}},
+		{actor: ci, need: n("lambda:DeleteFunction", "arn:aws:lambda:*:111122223333:function:deploy-*", "quarterly"), everyDays: 90, phase: 75, hour: 16,
+			build: func(*rand.Rand, int, time.Time) call {
+				return lambdaCall("DeleteFunction20150331", "us-east-1", "deploy-reports", false)
+			}},
 		{actor: ci, need: n("s3:PutObject", "arn:aws:s3:::acme-artifacts/builds/*", "daily"), rate: 2, weekdays: true, hour: 14,
 			build: func(r *rand.Rand, _ int, _ time.Time) call {
 				return s3Object("PutObject", artifactBucket, fmt.Sprintf("builds/%06d/bundle.zip", r.IntN(1000000)), false)
@@ -123,16 +153,24 @@ func scenario() ([]task, []task, []PrincipalTruth) {
 				return s3Object("GetObject", artifactBucket, fmt.Sprintf("builds/%06d/manifest.json", r.IntN(1000000)), true)
 			}},
 		{actor: ci, need: n("sts:GetCallerIdentity", "*", "daily"), rate: 1, weekdays: true, hour: 14,
-			build: func(*rand.Rand, int, time.Time) call { return plain("sts.amazonaws.com", "GetCallerIdentity", "us-east-1", true) }},
+			build: func(*rand.Rand, int, time.Time) call {
+				return plain("sts.amazonaws.com", "GetCallerIdentity", "us-east-1", true)
+			}},
 		{actor: ci, need: Need{Action: "iam:PassRole", Resource: "arn:aws:iam::111122223333:role/lambda-exec-deploy", Frequency: "never-logged"}},
 
 		// analyst-01: console user reading reports with MFA.
 		{actor: analyst, need: n("s3:GetObject", "arn:aws:s3:::acme-reports/reports/*", "frequent"), rate: 6, weekdays: true, hour: -1,
-			build: func(r *rand.Rand, _ int, d time.Time) call { return s3Object("GetObject", reportBucket, reportKey(r, d), true) }},
+			build: func(r *rand.Rand, _ int, d time.Time) call {
+				return s3Object("GetObject", reportBucket, reportKey(r, d), true)
+			}},
 		{actor: analyst, need: n("s3:ListBucket", "arn:aws:s3:::acme-reports", "daily"), rate: 3, weekdays: true, hour: -1,
-			build: func(_ *rand.Rand, _ int, d time.Time) call { return s3List(reportBucket, "reports/"+d.Format("2006-01")+"/") }},
+			build: func(_ *rand.Rand, _ int, d time.Time) call {
+				return s3List(reportBucket, "reports/"+d.Format("2006-01")+"/")
+			}},
 		{actor: analyst, need: n("s3:ListAllMyBuckets", "*", "daily"), rate: 1, weekdays: true, hour: 9,
-			build: func(*rand.Rand, int, time.Time) call { return plain("s3.amazonaws.com", "ListBuckets", "us-east-1", true) }},
+			build: func(*rand.Rand, int, time.Time) call {
+				return plain("s3.amazonaws.com", "ListBuckets", "us-east-1", true)
+			}},
 		{actor: analyst, need: n("dynamodb:Scan", "arn:aws:dynamodb:us-east-1:111122223333:table/metrics", "daily"), rate: 2, weekdays: true, hour: -1,
 			build: func(*rand.Rand, int, time.Time) call { return ddb("Scan", "us-east-1", "metrics", "", true) }},
 		{actor: analyst, need: n("dynamodb:DescribeTable", "arn:aws:dynamodb:us-east-1:111122223333:table/metrics", "weekly"), everyDays: 7, phase: 2, hour: 10,
@@ -144,9 +182,13 @@ func scenario() ([]task, []task, []PrincipalTruth) {
 		{actor: ops, need: n("ec2:DescribeInstances", "*", "daily"), rate: 4, hour: -1,
 			build: func(*rand.Rand, int, time.Time) call { return ec2Describe() }},
 		{actor: ops, need: n("ec2:DescribeVolumes", "*", "daily"), rate: 1, weekdays: true, hour: 19,
-			build: func(*rand.Rand, int, time.Time) call { return plain("ec2.amazonaws.com", "DescribeVolumes", "us-east-1", true) }},
+			build: func(*rand.Rand, int, time.Time) call {
+				return plain("ec2.amazonaws.com", "DescribeVolumes", "us-east-1", true)
+			}},
 		{actor: ops, need: n("ec2:DescribeSnapshots", "*", "daily"), rate: 1, weekdays: true, hour: 19,
-			build: func(*rand.Rand, int, time.Time) call { return plain("ec2.amazonaws.com", "DescribeSnapshots", "us-east-1", true) }},
+			build: func(*rand.Rand, int, time.Time) call {
+				return plain("ec2.amazonaws.com", "DescribeSnapshots", "us-east-1", true)
+			}},
 		{actor: ops, need: n("ec2:StopInstances", "arn:aws:ec2:us-east-1:111122223333:instance/*", "daily"), rate: 1, weekdays: true, hour: 20,
 			build: func(*rand.Rand, int, time.Time) call { return ec2Instances("StopInstances", instances...) }},
 		{actor: ops, need: n("ec2:StartInstances", "arn:aws:ec2:us-east-1:111122223333:instance/*", "daily"), rate: 1, weekdays: true, hour: 7,
@@ -165,7 +207,9 @@ func scenario() ([]task, []task, []PrincipalTruth) {
 		{actor: app, need: Need{Frequency: "denied-explicit-deny"}, everyDays: 30, phase: 11,
 			build: func(*rand.Rand, int, time.Time) call { return denied(s3Bucket("DeleteBucket", appBucket)) }},
 		{actor: app, need: Need{Frequency: "denied-not-granted"}, everyDays: 20, phase: 5,
-			build: func(*rand.Rand, int, time.Time) call { return denied(plain("iam.amazonaws.com", "ListRoles", "us-east-1", true)) }},
+			build: func(*rand.Rand, int, time.Time) call {
+				return denied(plain("iam.amazonaws.com", "ListRoles", "us-east-1", true))
+			}},
 		{actor: analyst, need: Need{Frequency: "denied-not-granted"}, everyDays: 15, phase: 8,
 			build: func(*rand.Rand, int, time.Time) call {
 				return denied(s3Object("PutObject", reportBucket, "reports/scratch/notes.csv", false))
@@ -175,7 +219,9 @@ func scenario() ([]task, []task, []PrincipalTruth) {
 				return plain("cloudformation.amazonaws.com", "DescribeStacks", "us-east-1", true)
 			}},
 		{actor: svcIdentity, need: Need{Frequency: "aws-service-principal"}, everyDays: 3, phase: 1,
-			build: func(*rand.Rand, int, time.Time) call { return plain("sts.amazonaws.com", "AssumeRole", "us-east-1", false) }},
+			build: func(*rand.Rand, int, time.Time) call {
+				return plain("sts.amazonaws.com", "AssumeRole", "us-east-1", false)
+			}},
 	}
 	svcIdentity.sourceIP = func(*rand.Rand) string { return "lambda.amazonaws.com" }
 	svcIdentity.userAgent = "lambda.amazonaws.com"
