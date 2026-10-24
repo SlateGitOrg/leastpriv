@@ -216,8 +216,8 @@ func actionUniverse(cat *catalog.Catalog, p *authz.Principal, gen []*policy.Docu
 			for _, a := range st.Action {
 				addPattern(a)
 			}
-			for _, a := range st.NotAction {
-				addPattern(a)
+			if len(st.NotAction) > 0 {
+				all = true // NotAction grants or denies every other action
 			}
 		}
 	}
