@@ -370,7 +370,8 @@ func parseAuthDetails(data []byte) (*Inventory, error) {
 			return nil, err
 		}
 		md, warns := resolve("user", u.AttachedManagedPolicies, "managed")
-		p.Policies = append(docs, md...)
+		p.Policies = append(p.Policies, docs...)
+		p.Policies = append(p.Policies, md...)
 		p.Warnings = append(p.Warnings, warns...)
 		for _, gn := range u.GroupList {
 			g, ok := groups[gn]
@@ -391,7 +392,8 @@ func parseAuthDetails(data []byte) (*Inventory, error) {
 			return nil, err
 		}
 		md, warns := resolve("role", r.AttachedManagedPolicies, "managed")
-		p.Policies = append(docs, md...)
+		p.Policies = append(p.Policies, docs...)
+		p.Policies = append(p.Policies, md...)
 		p.Warnings = append(p.Warnings, warns...)
 		boundary(p, r.PermissionsBoundary)
 		inv.Principals = append(inv.Principals, p)

@@ -243,3 +243,17 @@ func TestReorder(t *testing.T) {
 		t.Fatalf("reorder: %s", got)
 	}
 }
+
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, os.ErrClosed }
+
+func TestOutputWriteFailureIsAnError(t *testing.T) {
+	var errb bytes.Buffer
+	if code := Run([]string{"catalog", "sts"}, failingWriter{}, &errb); code != ExitError {
+		t.Fatalf("exit %d, want %d", code, ExitError)
+	}
+	if !strings.Contains(errb.String(), "writing output") {
+		t.Fatalf("stderr %q does not mention the write failure", errb.String())
+	}
+}

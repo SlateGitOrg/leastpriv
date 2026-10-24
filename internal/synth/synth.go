@@ -24,6 +24,9 @@ import (
 // Account is the fictional AWS account ID used by the scenario.
 const Account = "111122223333"
 
+// homeRegion is the region of the regional services the scenario calls.
+const homeRegion = "us-east-1"
+
 // Config parameterises generation.
 type Config struct {
 	Seed      uint64
@@ -100,7 +103,7 @@ func Generate(cfg Config) (*Scenario, error) {
 	if cfg.Days <= 0 || cfg.TrainDays <= 0 || cfg.TrainDays >= cfg.Days {
 		return nil, fmt.Errorf("invalid config: need 0 < TrainDays < Days")
 	}
-	r := rand.New(rand.NewPCG(cfg.Seed, cfg.Seed^0x9e3779b97f4a7c15))
+	r := rand.New(rand.NewPCG(cfg.Seed, cfg.Seed^0x9e3779b97f4a7c15)) // #nosec G404 -- deterministic fixture generation, not security-sensitive
 	tasks, noise, truths := scenario()
 	authzDoc, err := json.MarshalIndent(inventory(), "", "  ")
 	if err != nil {

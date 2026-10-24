@@ -283,11 +283,12 @@ func align(a, b []string) []op {
 	at := func(i, j int) int32 { return lcs[i*(m+1)+j] }
 	for i := n - 1; i >= 0; i-- {
 		for j := m - 1; j >= 0; j-- {
-			if a[i] == b[j] {
+			switch {
+			case a[i] == b[j]:
 				lcs[i*(m+1)+j] = at(i+1, j+1) + 1
-			} else if at(i+1, j) >= at(i, j+1) {
+			case at(i+1, j) >= at(i, j+1):
 				lcs[i*(m+1)+j] = at(i+1, j)
-			} else {
+			default:
 				lcs[i*(m+1)+j] = at(i, j+1)
 			}
 		}

@@ -70,8 +70,8 @@ func substitute(s string, req *Request, unk unknownSet) (string, Tri) {
 		}
 		b.WriteString(s[:i])
 		key, def, hasDef := parseVariable(s[i+2 : i+j])
-		switch {
-		case key == "":
+		switch key {
+		case "":
 			b.WriteString(glob.Escape(def))
 		default:
 			vals, st := req.lookup(key)

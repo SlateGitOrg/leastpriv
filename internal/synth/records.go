@@ -167,7 +167,8 @@ func s3Bucket(name, bucket string) call {
 	}
 }
 
-func ddb(name, region, table, index string, readOnly bool) call {
+func ddb(name, table, index string, readOnly bool) call {
+	region := homeRegion
 	p := map[string]any{"tableName": table}
 	if index != "" {
 		p["indexName"] = index
@@ -254,8 +255,8 @@ func snsPublish(topic string) call {
 		params: map[string]any{"topicArn": fmt.Sprintf("arn:aws:sns:us-east-1:%s:%s", Account, topic)}}
 }
 
-func plain(source, name, region string, readOnly bool) call {
-	return call{source: source, name: name, region: region, readOnly: readOnly, params: map[string]any{}}
+func plain(source, name string, readOnly bool) call {
+	return call{source: source, name: name, region: homeRegion, readOnly: readOnly, params: map[string]any{}}
 }
 
 func denied(c call) call {

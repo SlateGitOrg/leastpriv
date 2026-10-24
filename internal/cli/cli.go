@@ -70,7 +70,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprint(stderr, usage)
 		return ExitUsage
 	}
-	e := &env{stdout: stdout, stderr: stderr, cat: catalog.Default()}
+	out := &stickyWriter{w: stdout}
+	e := &env{stdout: out, stderr: stderr, cat: catalog.Default()}
 	e.log = slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	cmd, rest := args[0], args[1:]
 	var err error
@@ -93,9 +94,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	case "map":
 		err = e.mapCmd(rest)
 	case "version", "--version":
-		fmt.Fprintf(stdout, "leastpriv %s (catalog: %d services, %d actions)\n", Version, len(e.cat.Services), len(e.cat.Actions()))
+		fmt.Fprintf(out, "leastpriv %s (catalog: %d services, %d actions)\n", Version, len(e.cat.Services), len(e.cat.Actions()))
 	case "help", "-h", "--help":
-		fmt.Fprint(stdout, usage)
+		fmt.Fprint(out, usage)
 	default:
 		fmt.Fprintf(stderr, "leastpriv: unknown command %q\n\n%s", cmd, usage)
 		return ExitUsage
@@ -108,11 +109,33 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "leastpriv %s: %v\n", cmd, err)
 		return ExitUsage
 	}
+	if err == nil && out.err != nil {
+		err = fmt.Errorf("writing output: %w", out.err)
+	}
 	if err != nil {
 		fmt.Fprintf(stderr, "leastpriv %s: %v\n", cmd, err)
 		return ExitError
 	}
 	return code
+}
+
+// stickyWriter remembers the first write error so that the many unchecked
+// fmt.Fprint calls that render reports still turn a failed write (for example
+// a full disk or closed pipe) into a non-zero exit code.
+type stickyWriter struct {
+	w   io.Writer
+	err error
+}
+
+func (s *stickyWriter) Write(p []byte) (int, error) {
+	if s.err != nil {
+		return 0, s.err
+	}
+	n, err := s.w.Write(p)
+	if err != nil {
+		s.err = err
+	}
+	return n, err
 }
 
 type usageError struct{ msg string }

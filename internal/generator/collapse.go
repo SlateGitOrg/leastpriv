@@ -230,7 +230,8 @@ func (w *walker) collapseNode(n *trieNode, path string, isRoot bool) (string, bo
 			kept = append(kept, e)
 		}
 	}
-	w.events = append(kept, Collapse{Action: w.action, Pattern: w.prefix + pat, Replaces: replaced, Kind: "path"})
+	kept = append(kept, Collapse{Action: w.action, Pattern: w.prefix + pat, Replaces: replaced, Kind: "path"})
+	w.events = kept
 	return pat, true
 }
 
@@ -302,8 +303,8 @@ func (w *walker) namePrefixes(path string, names []string) []string {
 func dedupeSorted(in []string) []string {
 	sort.Strings(in)
 	out := in[:0]
-	for i, s := range in {
-		if i == 0 || s != in[i-1] {
+	for _, s := range in {
+		if len(out) == 0 || s != out[len(out)-1] {
 			out = append(out, s)
 		}
 	}

@@ -105,7 +105,7 @@ func ReadFile(path string, visit Visitor) error {
 func Read(r io.Reader, visit Visitor) error {
 	br := bufio.NewReader(r)
 	first, err := peekNonSpace(br)
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		return nil
 	}
 	if err != nil {
@@ -166,7 +166,7 @@ func wrapperRecords(head json.RawMessage) ([]json.RawMessage, bool, error) {
 	}
 	var records []json.RawMessage
 	if err := json.Unmarshal(raw, &records); err != nil {
-		return nil, false, fmt.Errorf("Records: %w", err)
+		return nil, false, fmt.Errorf("decode Records array: %w", err)
 	}
 	return records, true, nil
 }
