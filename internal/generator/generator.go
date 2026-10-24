@@ -117,7 +117,8 @@ type Ungranted struct {
 	Count    int    `json:"count"`
 }
 
-// Skipped is an observation deliberately left out of the generated policy.
+// Skipped is an observation left out of the generated policy (or, in
+// Result.Fallbacks, one that could not be narrowed).
 type Skipped struct {
 	Action   string `json:"action"`
 	Resource string `json:"resource"`
@@ -134,9 +135,9 @@ type Expansion struct {
 
 // Grant is one generated (actions, resources, condition) statement with provenance.
 type Grant struct {
-	Sid       string           `json:"sid"`
-	Actions   []string         `json:"actions"`
-	Resources []string         `json:"resources,omitempty"`
+	Sid       string   `json:"sid"`
+	Actions   []string `json:"actions"`
+	Resources []string `json:"resources,omitempty"`
 	// NotResource is set (instead of Resources) only when the source
 	// statement's NotResource uses policy variables and is copied verbatim.
 	NotResource []string         `json:"notResource,omitempty"`
@@ -153,16 +154,19 @@ type Result struct {
 	Size      int                `json:"size"`
 	// ObservedCalls counts distinct (action, resource, relevant-context)
 	// observations; GrantedCalls those the original policies allowed.
-	ObservedCalls int          `json:"observedCalls"`
-	GrantedCalls  int          `json:"grantedCalls"`
-	Grants        []Grant      `json:"grants"`
-	Denies        int          `json:"copiedDenies"`
-	Ungranted     []Ungranted  `json:"ungranted,omitempty"`
-	Skipped       []Skipped    `json:"skipped,omitempty"`
-	Collapses     []Collapse   `json:"collapses,omitempty"`
-	Expansions    []Expansion  `json:"expansions,omitempty"`
-	Warnings      []string     `json:"warnings,omitempty"`
-	Attributed    []Attributed `json:"-"`
+	ObservedCalls int         `json:"observedCalls"`
+	GrantedCalls  int         `json:"grantedCalls"`
+	Grants        []Grant     `json:"grants"`
+	Denies        int         `json:"copiedDenies"`
+	Ungranted     []Ungranted `json:"ungranted,omitempty"`
+	Skipped       []Skipped   `json:"skipped,omitempty"`
+	// Fallbacks lists observations whose resource could not be scoped
+	// provably, so the action kept its source statement's resource element.
+	Fallbacks  []Skipped    `json:"fallbacks,omitempty"`
+	Collapses  []Collapse   `json:"collapses,omitempty"`
+	Expansions []Expansion  `json:"expansions,omitempty"`
+	Warnings   []string     `json:"warnings,omitempty"`
+	Attributed []Attributed `json:"-"`
 }
 
 // Attributed is a granted observation with the source statement that granted
@@ -216,6 +220,7 @@ func Generate(cat *catalog.Catalog, in Input, opts Options) (*Result, error) {
 
 	ungranted := map[string]*Ungranted{}
 	skipped := map[string]*Skipped{}
+	fallbacks := map[string]*Skipped{}
 	groups := map[sourceKey]map[string]*actionGroup{}
 	seen := map[string]bool{}
 	for _, o := range in.Observations {
@@ -291,15 +296,23 @@ func Generate(cat *catalog.Catalog, in Input, opts Options) (*Result, error) {
 					resources, evs = col.collapse(action, policy.ServiceOf(action), resources, cov.resourceCovered)
 					res.Collapses = append(res.Collapses, evs...)
 				}
-				kept := resources[:0]
+				uncovered := false
 				for _, r := range resources {
-					if cov.resourceCovered(r) {
-						kept = append(kept, r)
-					} else {
-						addSkipKey(skipped, action, r, "observed resource is a pattern the source statement does not provably cover")
+					if !cov.resourceCovered(r) {
+						uncovered = true
+						addSkipKey(fallbacks, action, r, "resource only partially known (pattern) and not provably inside the source statement; kept the source statement's resource scope for this action")
 					}
 				}
-				resources = kept
+				if uncovered {
+					// Fall back to the source's own resource element: still a
+					// subset of the original, and it allows the observed call.
+					resources, notResources = nil, nil
+					if cov.st.Has("NotResource") {
+						notResources = append([]string(nil), cov.st.NotResource...)
+					} else {
+						resources = append([]string(nil), cov.st.Resource...)
+					}
+				}
 			}
 			if len(resources) == 0 && len(notResources) == 0 {
 				continue
@@ -329,6 +342,7 @@ func Generate(cat *catalog.Catalog, in Input, opts Options) (*Result, error) {
 	sort.Slice(res.Expansions, func(i, j int) bool { return res.Expansions[i].Pattern < res.Expansions[j].Pattern })
 	res.Ungranted = sortedUngranted(ungranted)
 	res.Skipped = sortedSkipped(skipped)
+	res.Fallbacks = sortedSkipped(fallbacks)
 
 	doc, denies := assemble(p, grants)
 	res.Denies = denies
