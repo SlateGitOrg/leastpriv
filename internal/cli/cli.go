@@ -130,6 +130,15 @@ func (e *env) flags(name string) *flag.FlagSet {
 	return fs
 }
 
+// parse parses flags, classifying malformed flags as usage errors.
+func parse(fs *flag.FlagSet, args []string) error {
+	err := fs.Parse(args)
+	if err == nil || errors.Is(err, flag.ErrHelp) {
+		return err
+	}
+	return usageError{err.Error()}
+}
+
 func (e *env) verbose(v bool) {
 	if v {
 		e.log = slog.New(slog.NewTextHandler(e.stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -227,7 +236,7 @@ func (e *env) generate(args []string) (int, error) {
 	out := fs.String("out", "", "directory for generated policies and reports")
 	format := fs.String("format", "md", "report format on stdout: md or json")
 	noVerify := fs.Bool("no-verify", false, "skip verification")
-	if err := fs.Parse(args); err != nil {
+	if err := parse(fs, args); err != nil {
 		return ExitUsage, err
 	}
 	lvl, err := generator.ParseLevel(*level)
@@ -360,7 +369,7 @@ func (e *env) gap(args []string) error {
 	staleDays := fs.Int("stale-days", 30, "flag used actions not seen for this many days as stale")
 	format := fs.String("format", "md", "output format: md or json")
 	out := fs.String("out", "", "also write gap.md and gap.json to this directory")
-	if err := fs.Parse(args); err != nil {
+	if err := parse(fs, args); err != nil {
 		return err
 	}
 	if *format != "md" && *format != "json" {
@@ -425,7 +434,7 @@ func (e *env) verify(args []string) (int, error) {
 	var policies stringList
 	fs.Var(&policies, "policy", "generated policy file (repeatable or comma-separated)")
 	format := fs.String("format", "md", "output format: md or json")
-	if err := fs.Parse(args); err != nil {
+	if err := parse(fs, args); err != nil {
 		return ExitUsage, err
 	}
 	if len(c.principals) != 1 || len(policies) == 0 {
@@ -469,7 +478,7 @@ func (e *env) verify(args []string) (int, error) {
 func (e *env) diff(args []string) error {
 	fs := e.flags("diff")
 	format := fs.String("format", "md", "output format: md or json")
-	if err := fs.Parse(reorder(args)); err != nil {
+	if err := parse(fs, reorder(args)); err != nil {
 		return err
 	}
 	if fs.NArg() != 2 {
@@ -521,7 +530,7 @@ func (e *env) simulate(args []string) error {
 	resource := fs.String("resource", "*", "resource ARN")
 	fs.Var(&ctx, "context", "condition context key=value (repeatable; repeat a key for multiple values)")
 	format := fs.String("format", "text", "output format: text or json")
-	if err := fs.Parse(args); err != nil {
+	if err := parse(fs, args); err != nil {
 		return err
 	}
 	if len(policies) == 0 || *action == "" {
@@ -580,7 +589,7 @@ func (e *env) simulate(args []string) error {
 
 func (e *env) validate(args []string) (int, error) {
 	fs := e.flags("validate")
-	if err := fs.Parse(args); err != nil {
+	if err := parse(fs, args); err != nil {
 		return ExitUsage, err
 	}
 	if fs.NArg() == 0 {
@@ -611,7 +620,7 @@ func (e *env) validate(args []string) (int, error) {
 
 func (e *env) catalogCmd(args []string) error {
 	fs := e.flags("catalog")
-	if err := fs.Parse(args); err != nil {
+	if err := parse(fs, args); err != nil {
 		return err
 	}
 	pattern := "*"
@@ -649,7 +658,7 @@ func (e *env) mapCmd(args []string) error {
 	fs := e.flags("map")
 	trail := fs.String("trail", "", "CloudTrail log file or directory (required)")
 	limit := fs.Int("limit", 20, "maximum records to print (0: all)")
-	if err := fs.Parse(args); err != nil {
+	if err := parse(fs, args); err != nil {
 		return err
 	}
 	if *trail == "" {
