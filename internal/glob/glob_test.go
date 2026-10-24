@@ -215,3 +215,34 @@ func BenchmarkSubsumes(b *testing.B) {
 		Subsumes(g, s)
 	}
 }
+
+func randRunes(r *rand.Rand, alphabet []rune, maxLen int) string {
+	n := r.IntN(maxLen + 1)
+	out := make([]rune, n)
+	for i := range out {
+		out[i] = alphabet[r.IntN(len(alphabet))]
+	}
+	return string(out)
+}
+
+// TestMatchPathsAgree checks the ASCII fast path and the rune path against
+// the regexp oracle, case-sensitively and case-insensitively, on mixed
+// ASCII/non-ASCII inputs so both code paths are exercised.
+func TestMatchPathsAgree(t *testing.T) {
+	r := rand.New(rand.NewPCG(3, 4))
+	for i := 0; i < 5000; i++ {
+		var p, s string
+		if i%2 == 0 {
+			p, s = randString(r, "aB*?", 7), randString(r, "abAB", 8)
+		} else {
+			p, s = randRunes(r, []rune("aÉ*?"), 7), randRunes(r, []rune("aéÉA"), 8)
+		}
+		if got, want := Match(p, s), globToRegexp(p).MatchString(s); got != want {
+			t.Fatalf("Match(%q,%q)=%v oracle=%v", p, s, got, want)
+		}
+		fold := regexp.MustCompile("(?i)" + globToRegexp(p).String())
+		if got, want := MatchFold(p, s), fold.MatchString(s); got != want {
+			t.Fatalf("MatchFold(%q,%q)=%v oracle=%v", p, s, got, want)
+		}
+	}
+}

@@ -9,8 +9,9 @@
 //
 // Complexity: Match runs the classic greedy two-pointer algorithm with a
 // single backtrack point: O(len(p)+len(s)) on typical inputs and
-// O(len(p)*len(s)) in the worst case, with O(len(p)+len(s)) space for the
-// rune conversion. Subsumes is a dynamic program over both patterns:
+// O(len(p)*len(s)) in the worst case. All-ASCII inputs (the common case for
+// ARNs and action names) are matched in place with O(1) extra space; other
+// inputs are converted to runes first, O(len(p)+len(s)) space. Subsumes is a dynamic program over both patterns:
 // O(len(g)*len(s)) time and O(len(s)) space.
 package glob
 
@@ -91,6 +92,9 @@ func Match(p, s string) bool {
 	if !HasWildcard(p) && !strings.ContainsRune(p, LiteralStar) && !strings.ContainsRune(p, LiteralQuestion) {
 		return p == s
 	}
+	if isASCII(p) && isASCII(s) {
+		return matchASCII(p, s, false)
+	}
 	return matchRunes(toRunes(p, false), toRunes(s, false))
 }
 
@@ -103,7 +107,54 @@ func MatchFold(p, s string) bool {
 	if !HasWildcard(p) && !strings.ContainsRune(p, LiteralStar) && !strings.ContainsRune(p, LiteralQuestion) {
 		return strings.EqualFold(p, s)
 	}
+	if isASCII(p) && isASCII(s) {
+		return matchASCII(p, s, true)
+	}
 	return matchRunes(toRunes(p, true), toRunes(s, true))
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
+}
+
+func lowerASCII(c byte) byte {
+	if c >= 'A' && c <= 'Z' {
+		return c + ('a' - 'A')
+	}
+	return c
+}
+
+// matchASCII is matchRunes over bytes for the common all-ASCII case; it
+// avoids the two rune-slice allocations. ASCII input cannot contain the
+// private-use literal escapes, so every '*' and '?' in p is a wildcard.
+func matchASCII(p, s string, fold bool) bool {
+	pi, si := 0, 0
+	star, mark := -1, 0
+	for si < len(s) {
+		switch {
+		case pi < len(p) && p[pi] == '*':
+			star, mark = pi, si
+			pi++
+		case pi < len(p) && (p[pi] == '?' || p[pi] == s[si] || (fold && lowerASCII(p[pi]) == lowerASCII(s[si]))):
+			pi++
+			si++
+		case star >= 0:
+			pi = star + 1
+			mark++
+			si = mark
+		default:
+			return false
+		}
+	}
+	for pi < len(p) && p[pi] == '*' {
+		pi++
+	}
+	return pi == len(p)
 }
 
 func matchRunes(p, s []rune) bool {
