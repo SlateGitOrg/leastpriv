@@ -38,7 +38,7 @@ type Observation struct {
 
 // Request builds the engine request for the observation. Context keys that
 // CloudTrail cannot carry are marked unknown.
-func (o *Observation) Request() engine.Request {
+func (o Observation) Request() engine.Request {
 	return engine.Request{
 		Action:   o.Action,
 		Resource: o.Resource,

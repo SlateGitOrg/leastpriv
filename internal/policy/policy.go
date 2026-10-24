@@ -79,6 +79,8 @@ func scalar(data []byte) (string, error) {
 			return "", err
 		}
 		return s, nil
+	case 'n':
+		return "", fmt.Errorf("null is not a valid policy value")
 	case 't', 'f':
 		var b bool
 		if err := json.Unmarshal(data, &b); err != nil {
