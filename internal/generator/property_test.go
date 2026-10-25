@@ -196,8 +196,12 @@ func TestPropertyObservedSubsetGeneratedSubsetOriginal(t *testing.T) {
 		checkProperty(t, r, it, randomPrincipal(t, r), randomObservations(r), &stats)
 	}
 	t.Logf("replay checks: %d, subset checks: %d (%d allowed by generated)", stats.replay, stats.subset, stats.generatedAllows)
-	if stats.replay < 1000 || stats.generatedAllows < 1000 {
-		t.Fatalf("property exercised too weakly: replay=%d generatedAllows=%d", stats.replay, stats.generatedAllows)
+	// The strength floor scales with the budget (2.5 checks per iteration,
+	// i.e. 1000 at the default 400) so that -short and LP_PROPERTY_ITER runs
+	// are held to the same per-iteration standard as the full run.
+	minChecks := iterations * 5 / 2
+	if stats.replay < minChecks || stats.generatedAllows < minChecks {
+		t.Fatalf("property exercised too weakly: replay=%d generatedAllows=%d (want >= %d each for %d iterations)", stats.replay, stats.generatedAllows, minChecks, iterations)
 	}
 }
 
