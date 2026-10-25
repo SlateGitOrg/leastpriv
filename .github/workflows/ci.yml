@@ -19,8 +19,12 @@ jobs:
         with:
           go-version: '1.27.x'
           cache: true
+      # Go 1.27.2 raised the compiler's export-data format to version 5.
+      # golangci-lint must be built on golang.org/x/tools >= v0.50.0 to read
+      # it (v2.14.0+); v2.13.x fails with "export data version 5 is greater
+      # than maximum supported version 4" while type-checking the stdlib.
       - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
       - name: make check
         run: make check
       - name: Fixtures are reproducible
