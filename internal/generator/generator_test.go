@@ -381,3 +381,52 @@ func TestLiteralWildcardCharactersInObservedResources(t *testing.T) {
 		}
 	}
 }
+
+// A 2008-version source's Resource text is literal. When the generator falls
+// back to the source's own resource scope (an observed partial resource it
+// cannot prove inside the statement), the copied text must be escaped for the
+// 2012-10-17 output, or '${aws:username}' would turn into a live variable and
+// widen the grant.
+func TestFallbackFrom2008SourceStaysLiteral(t *testing.T) {
+	for _, field := range []string{"Resource", "NotResource"} {
+		var src string
+		if field == "Resource" {
+			src = `{"Effect":"Allow","Action":"s3:GetObject","Resource":["arn:aws:s3:::b1/?","arn:aws:s3:::b2/${aws:username}"]}`
+		} else {
+			src = `{"Effect":"Allow","Action":"s3:GetObject","NotResource":["arn:aws:s3:::b2/${aws:username}"]}`
+		}
+		p := principal(t, "", `{"Version":"2008-10-17","Statement":[`+src+`]}`)
+		orig, err := p.PolicySet()
+		if err != nil {
+			t.Fatal(err)
+		}
+		o := obs("s3:GetObject", "arn:aws:s3:::b1/*")
+		o.Confidence = mapper.ConfidencePartial
+		for _, level := range []Level{LevelExact, LevelModerate, LevelAggressive} {
+			res := gen(t, p, level, o)
+			if res.Policy == nil {
+				t.Fatalf("%s %s: no policy generated", field, level)
+			}
+			if len(res.Fallbacks) == 0 && field == "Resource" {
+				t.Fatalf("%s %s: expected the fallback path to run", field, level)
+			}
+			b, _ := json.Marshal(res.Policy)
+			if !strings.Contains(string(b), `b2/${$}{aws:username}`) {
+				t.Errorf("%s %s: 2008 text not literalized in fallback: %s", field, level, b)
+			}
+			set := &engine.Set{Identity: []*engine.Policy{engine.MustCompile("gen", res.Policy)}}
+			if !set.Allows(o.Request()) {
+				t.Errorf("%s %s: observed call no longer allowed", field, level)
+			}
+			for _, user := range []string{"alice", "${aws:username}"} {
+				for _, r := range []string{"arn:aws:s3:::b2/alice", "arn:aws:s3:::b2/${aws:username}", "arn:aws:s3:::b1/x"} {
+					req := engine.NewRequest("s3:GetObject", r)
+					req.Set("aws:username", user)
+					if set.Allows(req) && !orig.Allows(req) {
+						t.Errorf("%s %s: generated allows %s (aws:username=%s) but original does not: %s", field, level, r, user, b)
+					}
+				}
+			}
+		}
+	}
+}

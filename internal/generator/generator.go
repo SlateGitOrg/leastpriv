@@ -310,12 +310,7 @@ func Generate(cat *catalog.Catalog, in Input, opts Options) (*Result, error) {
 				if uncovered {
 					// Fall back to the source's own resource element: still a
 					// subset of the original, and it allows the observed call.
-					resources, notResources = nil, nil
-					if cov.st.Has("NotResource") {
-						notResources = append([]string(nil), cov.st.NotResource...)
-					} else {
-						resources = append([]string(nil), cov.st.Resource...)
-					}
+					resources, notResources = cov.sourceResources()
 				} else {
 					resources = iamLiterals(resources)
 				}
@@ -475,10 +470,29 @@ func (c coverage) resourcesFor(observed []string) (resources, notResources []str
 	if !c.variableResources() {
 		return observed, nil
 	}
+	return c.sourceResources()
+}
+
+// sourceResources copies the source statement's Resource or NotResource
+// element for use in the 2012-10-17 output. Text from a 2008-10-17 source is
+// literal there, so its '${' is escaped; copied verbatim it would become a
+// live policy variable and widen the grant.
+func (c coverage) sourceResources() (resources, notResources []string) {
+	src := c.st.Resource
 	if c.st.Has("NotResource") {
-		return nil, append([]string(nil), c.st.NotResource...)
+		src = c.st.NotResource
 	}
-	return append([]string(nil), c.st.Resource...), nil
+	out := make([]string, len(src))
+	for i, r := range src {
+		if c.version == policy.Version2008 {
+			r = literalize(r)
+		}
+		out[i] = r
+	}
+	if c.st.Has("NotResource") {
+		return nil, out
+	}
+	return out, nil
 }
 
 func (c coverage) resourceCovered(r string) bool {
