@@ -53,7 +53,7 @@ fixtures: ## regenerate testdata/acme deterministically (must produce no diff)
 golden: ## rewrite golden files after an intentional change; review the diff
 	$(GO) test ./internal/generator ./internal/report -run Golden -update
 
-integration: ## no Docker/network integration suite exists; kept for program uniformity
+integration: ## no Docker/network integration suite exists; every test is offline and runs in 'make test'
 	@echo "integration: nothing to run (all tests are offline and run in 'make test')"
 
 clean:
