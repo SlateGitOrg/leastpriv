@@ -378,11 +378,17 @@ func writeOriginals(dir string, p *authz.Principal) error {
 	return nil
 }
 
+// createPrivate creates (or truncates) a report file readable only by the
+// operator: reports describe who can do what in the account.
+func createPrivate(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) // #nosec G304 -- user-chosen output dir
+}
+
 func writeReports(dir, stem string, v any, md func(io.Writer) error) error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	jf, err := os.Create(filepath.Join(dir, stem+".json")) // #nosec G304 -- user-chosen output dir
+	jf, err := createPrivate(filepath.Join(dir, stem+".json"))
 	if err != nil {
 		return err
 	}
@@ -393,7 +399,7 @@ func writeReports(dir, stem string, v any, md func(io.Writer) error) error {
 	if err := jf.Close(); err != nil {
 		return err
 	}
-	mf, err := os.Create(filepath.Join(dir, stem+".md")) // #nosec G304 -- user-chosen output dir
+	mf, err := createPrivate(filepath.Join(dir, stem+".md"))
 	if err != nil {
 		return err
 	}
