@@ -65,6 +65,10 @@ var (
 		"arn:aws:s3:::b1", "arn:aws:s3:::b2/b/y-*", "arn:aws:sqs:*:1:jobs-*", "arn:aws:sqs:us-east-1:1:*",
 		"arn:aws:dynamodb:us-east-1:1:table/t1*", "arn:aws:dynamodb:*:*:table/*", "arn:aws:dynamodb:us-east-1:1:table/t2",
 		"arn:aws:s3:::b1/${aws:username}/*", "arn:aws:s3:::b2/${aws:username, 'a'}/x?",
+		// Matches the partial observation "arn:aws:s3:::b1/*" without
+		// subsuming it, which forces the generator's fallback to the source's
+		// own resource element (and, from a 2008 document, its literal '${').
+		"arn:aws:s3:::b1/?",
 	}
 	propConditions = []string{
 		``,
@@ -153,41 +157,118 @@ func randomPrincipal(t *testing.T, r *rand.Rand) *authz.Principal {
 	return principal(t, boundary, docs...)
 }
 
-func TestPropertyObservedSubsetGeneratedSubsetOriginal(t *testing.T) {
-	iterations, seed := 400, uint64(2026)
-	if testing.Short() {
-		iterations = 60
+func randomObservations(r *rand.Rand) []activity.Observation {
+	var observations []activity.Observation
+	for i := 0; i < 5+r.IntN(40); i++ {
+		o := obs(pick(r, propActions), pick(r, propResources))
+		if strings.HasSuffix(o.Resource, "/*") {
+			o.Confidence = mapper.ConfidencePartial
+		}
+		o.Context = randomContext(r)
+		observations = append(observations, o)
 	}
-	// LP_PROPERTY_ITER / LP_PROPERTY_SEED allow longer soak runs.
+	return observations
+}
+
+// propertyBudget returns the iteration count and seed, overridable by
+// LP_PROPERTY_ITER / LP_PROPERTY_SEED for longer soak runs.
+func propertyBudget(iterations, short int) (int, uint64) {
+	seed := uint64(2026)
+	if testing.Short() {
+		iterations = short
+	}
 	if v, err := strconv.Atoi(os.Getenv("LP_PROPERTY_ITER")); err == nil && v > 0 {
 		iterations = v
 	}
 	if v, err := strconv.ParseUint(os.Getenv("LP_PROPERTY_SEED"), 10, 64); err == nil {
 		seed = v
 	}
+	return iterations, seed
+}
+
+type propertyStats struct{ replay, subset, generatedAllows, fallbacks int }
+
+func TestPropertyObservedSubsetGeneratedSubsetOriginal(t *testing.T) {
+	iterations, seed := propertyBudget(400, 60)
 	r := rand.New(rand.NewPCG(8, seed))
-	checkedReplay, checkedSubset, generatedAllows := 0, 0, 0
+	var stats propertyStats
 	for it := 0; it < iterations; it++ {
-		p := randomPrincipal(t, r)
-		orig, err := p.PolicySet()
-		if err != nil {
-			t.Fatal(err)
+		checkProperty(t, r, it, randomPrincipal(t, r), randomObservations(r), &stats)
+	}
+	t.Logf("replay checks: %d, subset checks: %d (%d allowed by generated)", stats.replay, stats.subset, stats.generatedAllows)
+	if stats.replay < 1000 || stats.generatedAllows < 1000 {
+		t.Fatalf("property exercised too weakly: replay=%d generatedAllows=%d", stats.replay, stats.generatedAllows)
+	}
+}
+
+// The resource fallback (an observed partial resource that cannot be proved
+// inside its source statement) is rare under the general pools, and from a
+// 2008-10-17 document it must keep the source's '${' literal. This property
+// draws only 2008 documents whose Allow statements match the partial
+// observation "arn:aws:s3:::b1/*" through "arn:aws:s3:::b1/?" without
+// subsuming it, alongside patterns holding '${', so the fallback runs on
+// almost every iteration.
+func TestPropertyFallbackFrom2008Source(t *testing.T) {
+	iterations, seed := propertyBudget(200, 40)
+	r := rand.New(rand.NewPCG(9, seed))
+	varPatterns := []string{"arn:aws:s3:::b1/${aws:username}/*", "arn:aws:s3:::b2/${aws:username, 'a'}/x?", "arn:aws:s3:::b2/alice/${aws:username}", "arn:aws:s3:::b2/*/${aws:username}"}
+	narrow := []string{"arn:aws:s3:::b1/a/*", "arn:aws:s3:::b2/b/y-*", "arn:aws:s3:::b1/a/x?", "arn:aws:s3:::b1"}
+	statement := func() string {
+		res := []string{"arn:aws:s3:::b1/?", pick(r, varPatterns)}
+		if r.IntN(2) == 0 {
+			res = append(res, pick(r, narrow))
 		}
-		var observations []activity.Observation
-		for i := 0; i < 5+r.IntN(40); i++ {
-			o := obs(pick(r, propActions), pick(r, propResources))
-			if strings.HasSuffix(o.Resource, "/*") {
-				o.Confidence = mapper.ConfidencePartial
-			}
+		field := "Resource"
+		if r.IntN(4) == 0 {
+			field, res = "NotResource", []string{pick(r, varPatterns)}
+		}
+		parts := []string{`"Effect":"Allow"`, `"Action":` + quoteList(pickN(r, []string{"s3:GetObject", "s3:Get*", "s3:*Object", "s3:PutObject", "s3:*"}, 2)), `"` + field + `":` + quoteList(res)}
+		if c := pick(r, propConditions); c != "" && r.IntN(4) == 0 {
+			parts = append(parts, c)
+		}
+		return "{" + strings.Join(parts, ",") + "}"
+	}
+	var stats propertyStats
+	for it := 0; it < iterations; it++ {
+		sts := []string{statement()}
+		if r.IntN(3) == 0 {
+			sts = append(sts, statement())
+		}
+		if r.IntN(4) == 0 {
+			sts = append(sts, randomStatement(r, 0))
+		}
+		p := principal(t, "", `{"Version":"2008-10-17","Statement":[`+strings.Join(sts, ",")+`]}`)
+		observations := randomObservations(r)
+		for _, a := range []string{"s3:GetObject", "s3:PutObject"} {
+			o := obs(a, "arn:aws:s3:::b1/*")
+			o.Confidence = mapper.ConfidencePartial
 			o.Context = randomContext(r)
 			observations = append(observations, o)
 		}
+		checkProperty(t, r, it, p, observations, &stats)
+	}
+	t.Logf("fallbacks: %d, replay checks: %d, subset checks: %d (%d allowed by generated)", stats.fallbacks, stats.replay, stats.subset, stats.generatedAllows)
+	if stats.fallbacks < iterations {
+		t.Fatalf("fallback path exercised too weakly: %d fallbacks in %d iterations", stats.fallbacks, iterations)
+	}
+}
+
+// checkProperty generates at every level and asserts
+// observed ⊆ generated ⊆ original over the dense request universe.
+func checkProperty(t *testing.T, r *rand.Rand, it int, p *authz.Principal, observations []activity.Observation, stats *propertyStats) {
+	t.Helper()
+	orig, err := p.PolicySet()
+	if err != nil {
+		t.Fatal(err)
+	}
+	{
 		contexts := []engine.Request{{Unknown: engine.AllUnknown}, {Context: randomContext(r)}, {Context: randomContext(r), Unknown: activity.UnknownFunc(false)}}
 		for _, level := range []Level{LevelExact, LevelModerate, LevelAggressive} {
 			res, err := Generate(cat, Input{Principal: p, Observations: observations}, Options{Level: level, MinActions: 2})
 			if err != nil {
 				t.Fatalf("iteration %d %s: %v", it, level, err)
 			}
+			stats.fallbacks += len(res.Fallbacks)
 			gen := &engine.Set{Boundary: orig.Boundary}
 			if res.Policy != nil {
 				if issues := engine.Validate(res.Policy); policy.HasErrors(issues) {
@@ -212,7 +293,7 @@ func TestPropertyObservedSubsetGeneratedSubsetOriginal(t *testing.T) {
 			for _, o := range observations {
 				req := o.Request()
 				if orig.Allows(req) {
-					checkedReplay++
+					stats.replay++
 					if !gen.Allows(req) {
 						t.Fatalf("observed call %s on %s (ctx %v) allowed by original but not generated\n%s", o.Action, o.Resource, o.Context, describe())
 					}
@@ -224,11 +305,11 @@ func TestPropertyObservedSubsetGeneratedSubsetOriginal(t *testing.T) {
 					for _, res := range propResources {
 						req := base
 						req.Action, req.Resource = a, res
-						checkedSubset++
+						stats.subset++
 						if !gen.Allows(req) {
 							continue
 						}
-						generatedAllows++
+						stats.generatedAllows++
 						if !orig.Allows(req) {
 							t.Fatalf("generated allows %s on %s (ctx %v) but original does not\n%s", a, res, req.Context, describe())
 						}
@@ -236,9 +317,5 @@ func TestPropertyObservedSubsetGeneratedSubsetOriginal(t *testing.T) {
 				}
 			}
 		}
-	}
-	t.Logf("replay checks: %d, subset checks: %d (%d allowed by generated)", checkedReplay, checkedSubset, generatedAllows)
-	if checkedReplay < 1000 || generatedAllows < 1000 {
-		t.Fatalf("property exercised too weakly: replay=%d generatedAllows=%d", checkedReplay, generatedAllows)
 	}
 }
