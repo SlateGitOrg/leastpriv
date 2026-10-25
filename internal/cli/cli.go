@@ -48,7 +48,7 @@ Usage:
   leastpriv gap      --authz FILE --trail PATH [flags]   permission-gap report (granted vs used)
   leastpriv verify   --authz FILE --trail PATH --principal ARN --policy FILE
   leastpriv diff     BEFORE.json AFTER.json [--format md|json]
-  leastpriv simulate --policy FILE --action A --resource R [--context k=v]...
+  leastpriv simulate (--policy FILE | --authz FILE --principal ARN) --action A --resource R [--context k=v]...
   leastpriv validate FILE...
   leastpriv catalog  [PATTERN]
   leastpriv map      --trail PATH [--limit N]
@@ -549,6 +549,8 @@ func (e *env) simulate(args []string) error {
 	var policies, ctx stringList
 	fs.Var(&policies, "policy", "identity policy file (repeatable)")
 	boundary := fs.String("boundary", "", "permissions boundary policy file")
+	authzPath := fs.String("authz", "", "IAM inventory; with --principal, evaluate that principal's attached policies and boundary instead of --policy")
+	principal := fs.String("principal", "", "principal ARN in --authz")
 	action := fs.String("action", "", "action, e.g. s3:GetObject (required)")
 	resource := fs.String("resource", "*", "resource ARN")
 	fs.Var(&ctx, "context", "condition context key=value (repeatable; repeat a key for multiple values)")
@@ -556,31 +558,26 @@ func (e *env) simulate(args []string) error {
 	if err := parse(fs, args); err != nil {
 		return err
 	}
-	if len(policies) == 0 || *action == "" {
-		return usageError{"--policy and --action are required"}
+	fromInventory := *authzPath != "" || *principal != ""
+	switch {
+	case *action == "":
+		return usageError{"--action is required"}
+	case fromInventory && (*authzPath == "" || *principal == ""):
+		return usageError{"--authz and --principal must be used together"}
+	case fromInventory && (len(policies) > 0 || *boundary != ""):
+		return usageError{"use either --authz/--principal or --policy/--boundary"}
+	case !fromInventory && len(policies) == 0:
+		return usageError{"--policy (or --authz with --principal) is required"}
 	}
-	docs, err := readPolicyFiles(policies)
+	var set *engine.Set
+	var err error
+	if fromInventory {
+		set, err = principalSet(*authzPath, *principal)
+	} else {
+		set, err = fileSet(policies, *boundary)
+	}
 	if err != nil {
 		return err
-	}
-	set := &engine.Set{}
-	for i, d := range docs {
-		c, err := engine.Compile(fmt.Sprintf("policy%d", i+1), d)
-		if err != nil {
-			return err
-		}
-		set.Identity = append(set.Identity, c)
-	}
-	if *boundary != "" {
-		bd, err := readPolicyFiles([]string{*boundary})
-		if err != nil {
-			return err
-		}
-		c, err := engine.Compile("boundary", bd[0])
-		if err != nil {
-			return err
-		}
-		set.Boundary = c
 	}
 	req := engine.NewRequest(*action, *resource)
 	values := map[string][]string{}
@@ -608,6 +605,45 @@ func (e *env) simulate(args []string) error {
 		fmt.Fprintf(e.stdout, "  matched %s statement %d %s [%s]\n", where, m.Index, m.Sid, m.Effect)
 	}
 	return nil
+}
+
+func principalSet(authzPath, arn string) (*engine.Set, error) {
+	inv, err := authz.LoadFile(authzPath)
+	if err != nil {
+		return nil, err
+	}
+	p, ok := inv.Find(arn)
+	if !ok {
+		return nil, fmt.Errorf("principal %s not found in %s", arn, authzPath)
+	}
+	return p.PolicySet()
+}
+
+func fileSet(policies []string, boundary string) (*engine.Set, error) {
+	docs, err := readPolicyFiles(policies)
+	if err != nil {
+		return nil, err
+	}
+	set := &engine.Set{}
+	for i, d := range docs {
+		c, err := engine.Compile(fmt.Sprintf("policy%d", i+1), d)
+		if err != nil {
+			return nil, err
+		}
+		set.Identity = append(set.Identity, c)
+	}
+	if boundary != "" {
+		bd, err := readPolicyFiles([]string{boundary})
+		if err != nil {
+			return nil, err
+		}
+		c, err := engine.Compile("boundary", bd[0])
+		if err != nil {
+			return nil, err
+		}
+		set.Boundary = c
+	}
+	return set, nil
 }
 
 func (e *env) validate(args []string) (int, error) {

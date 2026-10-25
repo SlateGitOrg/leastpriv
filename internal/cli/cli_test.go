@@ -257,3 +257,34 @@ func TestOutputWriteFailureIsAnError(t *testing.T) {
 		t.Fatalf("stderr %q does not mention the write failure", errb.String())
 	}
 }
+
+func TestSimulateFromInventory(t *testing.T) {
+	app := "arn:aws:iam::111122223333:role/app/app-backend"
+	// A decoy the original (over-broad) policy allows.
+	code, stdout, stderr := run(t, "simulate", "--authz", authzPath, "--principal", app,
+		"--action", "s3:GetObject", "--resource", "arn:aws:s3:::acme-app-data/admin/break-glass.txt")
+	if code != ExitOK || !strings.HasPrefix(stdout, "allowed:") {
+		t.Fatalf("exit %d stdout %q stderr %q", code, stdout, stderr)
+	}
+	// The boundary of ops-automation blocks IAM even though identity allows it.
+	code, stdout, _ = run(t, "simulate", "--authz", authzPath, "--principal", "arn:aws:iam::111122223333:role/ops-automation",
+		"--action", "iam:CreateUser", "--resource", "arn:aws:iam::111122223333:user/x")
+	if code != ExitOK || strings.HasPrefix(stdout, "allowed:") {
+		t.Fatalf("boundary should block iam:CreateUser: %q", stdout)
+	}
+	for _, args := range [][]string{
+		{"simulate", "--authz", authzPath, "--action", "s3:GetObject"},
+		{"simulate", "--authz", authzPath, "--principal", app, "--policy", "x.json", "--action", "s3:GetObject"},
+		{"simulate", "--authz", authzPath, "--principal", app},
+	} {
+		if code, _, _ := run(t, args...); code != ExitUsage {
+			t.Errorf("%v: exit %d, want %d", args, code, ExitUsage)
+		}
+	}
+	if code, _, _ := run(t, "simulate", "--authz", authzPath, "--principal", "arn:aws:iam::1:role/none", "--action", "s3:GetObject"); code != ExitError {
+		t.Errorf("unknown principal: exit %d", code)
+	}
+	if code, _, _ := run(t, "simulate", "--authz", "missing.json", "--principal", app, "--action", "s3:GetObject"); code != ExitError {
+		t.Errorf("missing inventory: exit %d", code)
+	}
+}
