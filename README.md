@@ -223,6 +223,7 @@ How to read it:
 | Coverage of `internal/...` (cross-package) | `./scripts/coverage.sh` | 95.8% |
 | Evaluator table tests mirroring the IAM User Guide (each case names its section) | `go test -run TestEvaluationLogic -v ./internal/engine` | 67 cases |
 | Property test `observed ⊆ generated ⊆ original`, random policies (wildcards, NotAction/NotResource, conditions, variables, 2008 version, denies, boundaries) × 3 levels | `go test -run TestPropertyObserved ./internal/generator` | 400 iterations per level (`-short`: 60; `LP_PROPERTY_ITER` / `LP_PROPERTY_SEED` override) |
+| Same property, focused on the resource fallback from `2008-10-17` sources (literal `${` must stay literal) | `go test -run TestPropertyFallbackFrom2008Source ./internal/generator` | 200 iterations per level (`-short`: 40) |
 | Glob matcher vs a regexp oracle, subsumption soundness, fuzz target | `go test ./internal/glob` (`go test -fuzz FuzzMatch ./internal/glob` to fuzz) | pass |
 | Golden reports and policies (`testdata/golden/`) | `go test -run Golden ./internal/generator ./internal/report` | pass |
 | Fixtures reproduce byte-for-byte | `make fixtures && git diff --exit-code testdata/` | no diff |

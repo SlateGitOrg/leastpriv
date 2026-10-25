@@ -141,7 +141,11 @@ For one principal with original policy set *O*:
    pattern must pass `covered()`: it is provably inside the source statement's
    `Resource` via `arn.Subsumes`, or — for a `NotResource` source — is a
    literal not matched by any `NotResource` entry (wildcards are never emitted
-   under a `NotResource` source).
+   under a `NotResource` source). If a partially mapped resource (e.g.
+   `arn:aws:s3:::b1/*`) cannot be proved inside its source, that action keeps
+   the source statement's own `Resource`/`NotResource` element instead
+   (reported under "fallbacks"); text copied from a `2008-10-17` source is
+   escaped as in step 6 so its `${` stays literal.
 4. **Collapse actions** (aggressive only): ≥ `MinActions` same-verb actions
    fold to `svc:Verb*` if the wildcard is subsumed by the source's `Action`
    and every catalog action it matches is List/Read. Expansions (actions
