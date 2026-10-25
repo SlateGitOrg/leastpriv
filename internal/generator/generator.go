@@ -36,6 +36,7 @@ import (
 	"github.com/archit2501/leastpriv/internal/catalog"
 	"github.com/archit2501/leastpriv/internal/engine"
 	"github.com/archit2501/leastpriv/internal/glob"
+	"github.com/archit2501/leastpriv/internal/mapper"
 	"github.com/archit2501/leastpriv/internal/policy"
 )
 
@@ -263,7 +264,7 @@ func Generate(cat *catalog.Catalog, in Input, opts Options) (*Result, error) {
 			ag = &actionGroup{resources: map[string]bool{}}
 			groups[src][action] = ag
 		}
-		ag.resources[o.Resource] = true
+		ag.resources[internalResource(o)] = true
 	}
 
 	col := opts.collapser(cat)
@@ -294,13 +295,16 @@ func Generate(cat *catalog.Catalog, in Input, opts Options) (*Result, error) {
 				if col != nil {
 					var evs []Collapse
 					resources, evs = col.collapse(action, policy.ServiceOf(action), resources, cov.resourceCovered)
+					for i := range evs {
+						evs[i].Pattern = iamLiteral(evs[i].Pattern)
+					}
 					res.Collapses = append(res.Collapses, evs...)
 				}
 				uncovered := false
 				for _, r := range resources {
 					if !cov.resourceCovered(r) {
 						uncovered = true
-						addSkipKey(fallbacks, action, r, "resource only partially known (pattern) and not provably inside the source statement; kept the source statement's resource scope for this action")
+						addSkipKey(fallbacks, action, iamLiteral(r), "resource only partially known (pattern) and not provably inside the source statement; kept the source statement's resource scope for this action")
 					}
 				}
 				if uncovered {
@@ -312,6 +316,8 @@ func Generate(cat *catalog.Catalog, in Input, opts Options) (*Result, error) {
 					} else {
 						resources = append([]string(nil), cov.st.Resource...)
 					}
+				} else {
+					resources = iamLiterals(resources)
 				}
 			}
 			if len(resources) == 0 && len(notResources) == 0 {
@@ -737,6 +743,37 @@ func alnumTitle(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// internalResource returns the observed resource in the generator's internal
+// pattern form. Exactly mapped resources are literal strings, so any '*' or
+// '?' they contain (object keys may hold both) is escaped to glob's literal
+// runes; partially mapped resources keep their '*' placeholders, which stand
+// for unknown ARN parts.
+func internalResource(o activity.Observation) string {
+	if o.Confidence == mapper.ConfidencePartial || o.Resource == "*" {
+		return o.Resource
+	}
+	return glob.Escape(o.Resource)
+}
+
+// iamLiteralReplacer renders internal patterns as 2012-10-17 policy text:
+// literal '*' and '?' become ${*} and ${?}, and a literal "${" becomes
+// "${$}{" so it is not read as a policy variable.
+var iamLiteralReplacer = strings.NewReplacer(
+	"${", "${$}{",
+	string(glob.LiteralStar), "${*}",
+	string(glob.LiteralQuestion), "${?}",
+)
+
+func iamLiteral(s string) string { return iamLiteralReplacer.Replace(s) }
+
+func iamLiterals(in []string) []string {
+	out := make([]string, len(in))
+	for i, s := range in {
+		out[i] = iamLiteral(s)
+	}
+	return out
 }
 
 // literalize protects text that a 2008-10-17 policy treated literally from

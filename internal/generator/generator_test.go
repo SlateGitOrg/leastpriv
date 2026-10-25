@@ -183,7 +183,9 @@ func TestActionCollapse(t *testing.T) {
 
 func TestNotActionAndNotResourceSources(t *testing.T) {
 	p := principal(t, "", doc(`{"Effect":"Allow","NotAction":"iam:*","NotResource":"arn:aws:s3:::secret/*"}`))
-	o := append(objects("b", "x/1", "x/2", "x/3"), obs("s3:GetObject", "arn:aws:s3:::b/*"))
+	partial := obs("s3:GetObject", "arn:aws:s3:::b/*")
+	partial.Confidence = mapper.ConfidencePartial
+	o := append(objects("b", "x/1", "x/2", "x/3"), partial)
 	r := gen(t, p, LevelAggressive, o...)
 	if len(r.Grants) != 1 || strings.Join(r.Grants[0].NotResource, ",") != "arn:aws:s3:::secret/*" {
 		t.Fatalf("pattern resource under NotResource must fall back to the source scope: %+v", r.Grants)
@@ -343,5 +345,39 @@ func TestHelpers(t *testing.T) {
 	}
 	if got := dedupeSorted([]string{"b", "a", "b"}); strings.Join(got, ",") != "a,b" {
 		t.Fatal("dedupe")
+	}
+}
+
+// Object keys may legally contain '*', '?' and "${". Emitted verbatim they
+// would act as wildcards or policy variables in the generated policy, so the
+// generator writes them with IAM's literal escapes ${*}, ${?} and ${$}.
+func TestLiteralWildcardCharactersInObservedResources(t *testing.T) {
+	p := principal(t, "", doc(`{"Effect":"Allow","Action":"s3:*","Resource":"arn:aws:s3:::b1/*"}`))
+	keys := []string{"a/x*y", "a/q?.csv", "a/${aws:username}.txt"}
+	for _, level := range []Level{LevelExact, LevelModerate, LevelAggressive} {
+		res := gen(t, p, level, objects("b1", keys...)...)
+		set := &engine.Set{Identity: []*engine.Policy{engine.MustCompile("gen", res.Policy)}}
+		for _, k := range keys {
+			r := "arn:aws:s3:::b1/" + k
+			if ev := set.Evaluate(engine.NewRequest("s3:GetObject", r)); !ev.Allowed() {
+				t.Errorf("%s: observed %s not allowed: %s", level, r, ev.Reason)
+			}
+		}
+		for _, r := range []string{"arn:aws:s3:::b1/a/x-anything-y", "arn:aws:s3:::b1/a/qZ.csv", "arn:aws:s3:::b1/a/alice.txt"} {
+			req := engine.NewRequest("s3:GetObject", r)
+			req.Set("aws:username", "alice")
+			if ev := set.Evaluate(req); ev.Allowed() && level == LevelExact {
+				t.Errorf("%s: literal characters acted as wildcards/variables: %s allowed", level, r)
+			}
+		}
+		if level == LevelExact {
+			want := []string{"arn:aws:s3:::b1/a/q${?}.csv", "arn:aws:s3:::b1/a/x${*}y", "arn:aws:s3:::b1/a/${$}{aws:username}.txt"}
+			got := strings.Join(resourcesOf(res, "s3:GetObject"), " ")
+			for _, w := range want {
+				if !strings.Contains(got, w) {
+					t.Errorf("exact resources %q missing %q", got, w)
+				}
+			}
+		}
 	}
 }

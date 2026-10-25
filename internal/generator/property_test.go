@@ -12,6 +12,7 @@ import (
 	"github.com/archit2501/leastpriv/internal/activity"
 	"github.com/archit2501/leastpriv/internal/authz"
 	"github.com/archit2501/leastpriv/internal/engine"
+	"github.com/archit2501/leastpriv/internal/mapper"
 	"github.com/archit2501/leastpriv/internal/policy"
 )
 
@@ -55,7 +56,9 @@ var (
 				out = append(out, "arn:aws:dynamodb:us-east-1:1:table/"+t+"/index/"+i)
 			}
 		}
-		return append(out, "*", "arn:aws:s3:::b1/*") // "*" (resource-less) and a partial-mapping pattern
+		// "*" (resource-less), a partial-mapping pattern, and object keys
+		// holding characters that are wildcards or variables in policy text.
+		return append(out, "*", "arn:aws:s3:::b1/*", "arn:aws:s3:::b1/a/x*1", "arn:aws:s3:::b2/b/q?", "arn:aws:s3:::b2/alice/${aws:username}")
 	}()
 	propResourcePatterns = []string{
 		"*", "arn:aws:s3:::b1/*", "arn:aws:s3:::b1/a/*", "arn:aws:s3:::*", "arn:aws:s3:::b?/*", "arn:aws:s3:::b1/a/x?",
@@ -173,6 +176,9 @@ func TestPropertyObservedSubsetGeneratedSubsetOriginal(t *testing.T) {
 		var observations []activity.Observation
 		for i := 0; i < 5+r.IntN(40); i++ {
 			o := obs(pick(r, propActions), pick(r, propResources))
+			if strings.HasSuffix(o.Resource, "/*") {
+				o.Confidence = mapper.ConfidencePartial
+			}
 			o.Context = randomContext(r)
 			observations = append(observations, o)
 		}
