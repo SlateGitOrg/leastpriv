@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/archit2501/leastpriv/internal/arn"
-	"github.com/archit2501/leastpriv/internal/glob"
+	"github.com/SlateGitOrg/leastpriv/internal/arn"
+	"github.com/SlateGitOrg/leastpriv/internal/glob"
 )
 
 type family uint8

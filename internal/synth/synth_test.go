@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/archit2501/leastpriv/internal/authz"
+	"github.com/SlateGitOrg/leastpriv/internal/authz"
 )
 
 func gunzip(t *testing.T, b []byte) []byte {

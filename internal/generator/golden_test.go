@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/archit2501/leastpriv/internal/activity"
-	"github.com/archit2501/leastpriv/internal/authz"
+	"github.com/SlateGitOrg/leastpriv/internal/activity"
+	"github.com/SlateGitOrg/leastpriv/internal/authz"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files")

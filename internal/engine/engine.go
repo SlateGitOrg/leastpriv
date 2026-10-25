@@ -25,9 +25,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/archit2501/leastpriv/internal/arn"
-	"github.com/archit2501/leastpriv/internal/glob"
-	"github.com/archit2501/leastpriv/internal/policy"
+	"github.com/SlateGitOrg/leastpriv/internal/arn"
+	"github.com/SlateGitOrg/leastpriv/internal/glob"
+	"github.com/SlateGitOrg/leastpriv/internal/policy"
 )
 
 // Decision is the outcome of an evaluation.

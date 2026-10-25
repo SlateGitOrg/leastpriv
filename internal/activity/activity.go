@@ -9,11 +9,11 @@ import (
 	"sort"
 	"time"
 
-	"github.com/archit2501/leastpriv/internal/authz"
-	"github.com/archit2501/leastpriv/internal/catalog"
-	"github.com/archit2501/leastpriv/internal/cloudtrail"
-	"github.com/archit2501/leastpriv/internal/engine"
-	"github.com/archit2501/leastpriv/internal/mapper"
+	"github.com/SlateGitOrg/leastpriv/internal/authz"
+	"github.com/SlateGitOrg/leastpriv/internal/catalog"
+	"github.com/SlateGitOrg/leastpriv/internal/cloudtrail"
+	"github.com/SlateGitOrg/leastpriv/internal/engine"
+	"github.com/SlateGitOrg/leastpriv/internal/mapper"
 )
 
 // Observation is one authorization implied by a CloudTrail record.

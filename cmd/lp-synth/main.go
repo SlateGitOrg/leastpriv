@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/archit2501/leastpriv/internal/synth"
+	"github.com/SlateGitOrg/leastpriv/internal/synth"
 )
 
 func main() {

@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/archit2501/leastpriv/internal/evalharness"
-	"github.com/archit2501/leastpriv/internal/report"
+	"github.com/SlateGitOrg/leastpriv/internal/evalharness"
+	"github.com/SlateGitOrg/leastpriv/internal/report"
 )
 
 func main() {

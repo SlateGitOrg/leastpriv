@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/archit2501/leastpriv/internal/arn"
-	"github.com/archit2501/leastpriv/internal/catalog"
+	"github.com/SlateGitOrg/leastpriv/internal/arn"
+	"github.com/SlateGitOrg/leastpriv/internal/catalog"
 )
 
 // Collapse records one wildcard introduced by resource collapsing.

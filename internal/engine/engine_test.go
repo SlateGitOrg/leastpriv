@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/archit2501/leastpriv/internal/policy"
+	"github.com/SlateGitOrg/leastpriv/internal/policy"
 )
 
 func mustDoc(t testing.TB, js string) *policy.Document {

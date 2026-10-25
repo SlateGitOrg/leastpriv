@@ -20,9 +20,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/archit2501/leastpriv/internal/arn"
-	"github.com/archit2501/leastpriv/internal/engine"
-	"github.com/archit2501/leastpriv/internal/policy"
+	"github.com/SlateGitOrg/leastpriv/internal/arn"
+	"github.com/SlateGitOrg/leastpriv/internal/engine"
+	"github.com/SlateGitOrg/leastpriv/internal/policy"
 )
 
 // NamedDoc is a policy document with its provenance.

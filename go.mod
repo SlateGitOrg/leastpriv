@@ -1,3 +1,3 @@
-module github.com/archit2501/leastpriv
+module github.com/SlateGitOrg/leastpriv
 
 go 1.24

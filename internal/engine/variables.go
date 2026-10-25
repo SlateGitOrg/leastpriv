@@ -3,7 +3,7 @@ package engine
 import (
 	"strings"
 
-	"github.com/archit2501/leastpriv/internal/glob"
+	"github.com/SlateGitOrg/leastpriv/internal/glob"
 )
 
 // hasVariables reports whether s contains a policy variable reference.

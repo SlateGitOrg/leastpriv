@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/archit2501/leastpriv/internal/glob"
+	"github.com/SlateGitOrg/leastpriv/internal/glob"
 )
 
 // ARN is a parsed Amazon Resource Name.

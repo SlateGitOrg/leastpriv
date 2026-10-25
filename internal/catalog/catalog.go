@@ -14,7 +14,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/archit2501/leastpriv/internal/glob"
+	"github.com/SlateGitOrg/leastpriv/internal/glob"
 )
 
 //go:embed data/catalog.json

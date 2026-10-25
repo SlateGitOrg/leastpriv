@@ -25,14 +25,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/archit2501/leastpriv/internal/activity"
-	"github.com/archit2501/leastpriv/internal/authz"
-	"github.com/archit2501/leastpriv/internal/catalog"
-	"github.com/archit2501/leastpriv/internal/engine"
-	"github.com/archit2501/leastpriv/internal/gap"
-	"github.com/archit2501/leastpriv/internal/generator"
-	"github.com/archit2501/leastpriv/internal/policy"
-	"github.com/archit2501/leastpriv/internal/synth"
+	"github.com/SlateGitOrg/leastpriv/internal/activity"
+	"github.com/SlateGitOrg/leastpriv/internal/authz"
+	"github.com/SlateGitOrg/leastpriv/internal/catalog"
+	"github.com/SlateGitOrg/leastpriv/internal/engine"
+	"github.com/SlateGitOrg/leastpriv/internal/gap"
+	"github.com/SlateGitOrg/leastpriv/internal/generator"
+	"github.com/SlateGitOrg/leastpriv/internal/policy"
+	"github.com/SlateGitOrg/leastpriv/internal/synth"
 )
 
 // Row is the score of one principal at one level.

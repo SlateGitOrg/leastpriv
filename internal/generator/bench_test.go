@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/archit2501/leastpriv/internal/activity"
+	"github.com/SlateGitOrg/leastpriv/internal/activity"
 )
 
 // BenchmarkGenerateScaling measures end-to-end generation (attribution,

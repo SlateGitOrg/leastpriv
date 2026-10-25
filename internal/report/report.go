@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/archit2501/leastpriv/internal/activity"
-	"github.com/archit2501/leastpriv/internal/diff"
-	"github.com/archit2501/leastpriv/internal/gap"
-	"github.com/archit2501/leastpriv/internal/generator"
-	"github.com/archit2501/leastpriv/internal/verify"
+	"github.com/SlateGitOrg/leastpriv/internal/activity"
+	"github.com/SlateGitOrg/leastpriv/internal/diff"
+	"github.com/SlateGitOrg/leastpriv/internal/gap"
+	"github.com/SlateGitOrg/leastpriv/internal/generator"
+	"github.com/SlateGitOrg/leastpriv/internal/verify"
 )
 
 // WriteJSON writes v as indented JSON.

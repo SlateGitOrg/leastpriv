@@ -18,11 +18,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/archit2501/leastpriv/internal/activity"
-	"github.com/archit2501/leastpriv/internal/authz"
-	"github.com/archit2501/leastpriv/internal/catalog"
-	"github.com/archit2501/leastpriv/internal/glob"
-	"github.com/archit2501/leastpriv/internal/policy"
+	"github.com/SlateGitOrg/leastpriv/internal/activity"
+	"github.com/SlateGitOrg/leastpriv/internal/authz"
+	"github.com/SlateGitOrg/leastpriv/internal/catalog"
+	"github.com/SlateGitOrg/leastpriv/internal/glob"
+	"github.com/SlateGitOrg/leastpriv/internal/policy"
 )
 
 // Status classifies one action for a principal.

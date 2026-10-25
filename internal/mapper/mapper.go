@@ -22,9 +22,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/archit2501/leastpriv/internal/arn"
-	"github.com/archit2501/leastpriv/internal/catalog"
-	"github.com/archit2501/leastpriv/internal/cloudtrail"
+	"github.com/SlateGitOrg/leastpriv/internal/arn"
+	"github.com/SlateGitOrg/leastpriv/internal/catalog"
+	"github.com/SlateGitOrg/leastpriv/internal/cloudtrail"
 )
 
 // Confidence describes how precisely a call's resource was determined.

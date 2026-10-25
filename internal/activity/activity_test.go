@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/archit2501/leastpriv/internal/authz"
-	"github.com/archit2501/leastpriv/internal/catalog"
+	"github.com/SlateGitOrg/leastpriv/internal/authz"
+	"github.com/SlateGitOrg/leastpriv/internal/catalog"
 )
 
 const logFile = `{"Records":[

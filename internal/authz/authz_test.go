@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/archit2501/leastpriv/internal/engine"
+	"github.com/SlateGitOrg/leastpriv/internal/engine"
 )
 
 const simpleDoc = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject","Resource":"*"}]}`

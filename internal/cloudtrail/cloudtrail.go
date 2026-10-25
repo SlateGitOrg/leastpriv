@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/archit2501/leastpriv/internal/arn"
+	"github.com/SlateGitOrg/leastpriv/internal/arn"
 )
 
 // Record is one CloudTrail event record (the fields this tool uses).

@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/archit2501/leastpriv/internal/activity"
-	"github.com/archit2501/leastpriv/internal/authz"
-	"github.com/archit2501/leastpriv/internal/catalog"
-	"github.com/archit2501/leastpriv/internal/diff"
-	"github.com/archit2501/leastpriv/internal/gap"
-	"github.com/archit2501/leastpriv/internal/generator"
-	"github.com/archit2501/leastpriv/internal/policy"
-	"github.com/archit2501/leastpriv/internal/verify"
+	"github.com/SlateGitOrg/leastpriv/internal/activity"
+	"github.com/SlateGitOrg/leastpriv/internal/authz"
+	"github.com/SlateGitOrg/leastpriv/internal/catalog"
+	"github.com/SlateGitOrg/leastpriv/internal/diff"
+	"github.com/SlateGitOrg/leastpriv/internal/gap"
+	"github.com/SlateGitOrg/leastpriv/internal/generator"
+	"github.com/SlateGitOrg/leastpriv/internal/policy"
+	"github.com/SlateGitOrg/leastpriv/internal/verify"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files")

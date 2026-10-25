@@ -3,7 +3,7 @@ package generator
 import (
 	"fmt"
 
-	"github.com/archit2501/leastpriv/internal/policy"
+	"github.com/SlateGitOrg/leastpriv/internal/policy"
 )
 
 // Split packs a policy's statements into several documents, each at most

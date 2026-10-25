@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/archit2501/leastpriv/internal/catalog"
-	"github.com/archit2501/leastpriv/internal/cloudtrail"
+	"github.com/SlateGitOrg/leastpriv/internal/catalog"
+	"github.com/SlateGitOrg/leastpriv/internal/cloudtrail"
 )
 
 func rec(t *testing.T, source, name, params, resources string) *cloudtrail.Record {
