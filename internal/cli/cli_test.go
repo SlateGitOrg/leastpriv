@@ -41,7 +41,7 @@ func TestGenerateEndToEnd(t *testing.T) {
 			t.Errorf("stdout missing %q", want)
 		}
 	}
-	for _, f := range []string{"role-app-backend.policy.json", "role-ci-deployer.policy.json", "user-analyst-01.policy.json", "report.md", "report.json"} {
+	for _, f := range []string{"role-app-backend.policy.json", "role-ci-deployer.policy.json", "user-analyst-01.policy.json", "report.md", "report.json", "original/role-ci-deployer.1.json"} {
 		if _, err := os.Stat(filepath.Join(out, f)); err != nil {
 			t.Errorf("missing output %s", f)
 		}
@@ -66,6 +66,11 @@ func TestGenerateEndToEnd(t *testing.T) {
 	code, stdout, _ = run(t, "diff", p, p, "--format", "json")
 	if code != ExitOK || !strings.Contains(stdout, `"unified": ""`) {
 		t.Fatalf("self diff: %s", stdout)
+	}
+	// The exported original diffs against the generated policy: only narrowing.
+	code, stdout, _ = run(t, "diff", filepath.Join(out, "original", "role-ci-deployer.1.json"), filepath.Join(out, "role-ci-deployer.policy.json"))
+	if code != ExitOK || !strings.Contains(stdout, "| 200 | 8 | 0 | 0 | 0 | 0 |") {
+		t.Fatalf("original vs generated diff: %s", stdout)
 	}
 	code, stdout, _ = run(t, "validate", p)
 	if code != ExitOK || !strings.Contains(stdout, ": ok") {

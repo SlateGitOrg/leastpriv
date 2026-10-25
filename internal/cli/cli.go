@@ -256,7 +256,7 @@ func (e *env) generate(args []string) (int, error) {
 	minSiblings := fs.Int("min-siblings", 0, "resource-collapse threshold (0: level default)")
 	minActions := fs.Int("min-actions", 3, "aggressive action-collapse threshold")
 	maxSize := fs.Int("max-size", policy.LimitManaged, "split policies larger than this many characters (0: never)")
-	out := fs.String("out", "", "directory for generated policies and reports")
+	out := fs.String("out", "", "directory for generated policies, reports and original/ copies of the input policies")
 	format := fs.String("format", "md", "report format on stdout: md or json")
 	noVerify := fs.Bool("no-verify", false, "skip verification")
 	if err := parse(fs, args); err != nil {
@@ -351,6 +351,26 @@ func writePolicies(dir string, p *authz.Principal, res *generator.Result) error 
 		if err != nil {
 			return err
 		}
+		if err := os.WriteFile(filepath.Join(dir, name), b, 0o600); err != nil {
+			return err
+		}
+	}
+	return writeOriginals(filepath.Join(dir, "original"), p)
+}
+
+// writeOriginals writes the principal's original identity policies as
+// <stem>.<n>.json so a reviewer can run "leastpriv diff" on before/after
+// files (pass several documents per side comma-separated).
+func writeOriginals(dir string, p *authz.Principal) error {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return err
+	}
+	for i, nd := range p.Policies {
+		b, err := nd.Doc.Pretty()
+		if err != nil {
+			return err
+		}
+		name := fmt.Sprintf("%s.%d.json", fileStem(p), i+1)
 		if err := os.WriteFile(filepath.Join(dir, name), b, 0o600); err != nil {
 			return err
 		}
